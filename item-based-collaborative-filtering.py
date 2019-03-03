@@ -10,9 +10,9 @@ import pickle
 environment = 'local'
 #environment= 'gcolab'
 # debug mode: if it is set True, only use partial dataset for the purpose of debug or demonstration
-debug_mode = True
+debug_mode = False
 # load_existing_w_matrix: it it is set True, the previous built similarity matrix will be loaded instead of building one
-load_existing_w_matrix = True
+load_existing_w_matrix = False
 
 
 # Set the file path where the similarity matrix will be persisted
@@ -21,39 +21,9 @@ if debug_mode == True:
 else:
     DEFAULT_PARTICLE_PATH = 'w_matrix.pkl'
 
-
-# install libraries and authorise google drive
-if environment == 'gcolab':
-    get_ipython().system('apt-get install -y -qq software-properties-common python-software-properties module-init-tools')
-    get_ipython().system('add-apt-repository -y ppa:alessandro-strada/ppa 2>&1 > /dev/null')
-    get_ipython().system('apt-get update -qq 2>&1 > /dev/null')
-    get_ipython().system('apt-get -y install -qq google-drive-ocamlfuse fuse')
-    from google.colab import auth
-    auth.authenticate_user()
-    from oauth2client.client import GoogleCredentials
-    creds = GoogleCredentials.get_application_default()
-    import getpass
-    get_ipython().system('google-drive-ocamlfuse -headless -id={creds.client_id} -secret={creds.client_secret} < /dev/null 2>&1 | grep URL')
-    vcode = getpass.getpass()
-    get_ipython().system('echo {vcode} | google-drive-ocamlfuse -headless -id={creds.client_id} -secret={creds.client_secret}')
-
-
-# mount google drive
-if environment == 'gcolab': 
-    get_ipython().system('mkdir -p drive')
-    get_ipython().system('google-drive-ocamlfuse drive')
-
-
-# load data
-if environment == 'gcolab':
-    ratings = pd.read_csv("drive/Colab-Notebooks/datasets/ratings.csv", encoding='"ISO-8859-1"')
-    movies = pd.read_csv("drive/Colab-Notebooks/datasets/movies.csv", encoding='"ISO-8859-1"')
-    tags = pd.read_csv("drive/Colab-Notebooks/datasets/tags.csv", encoding='"ISO-8859-1"')
-    DEFAULT_PARTICLE_PATH = "drive/Colab-Notebooks/" + DEFAULT_PARTICLE_PATH
-else:
-    ratings = pd.read_csv("datasets/ratings.csv", encoding='"ISO-8859-1"')
-    movies = pd.read_csv("datasets/movies.csv", encoding='"ISO-8859-1"')
-    tags = pd.read_csv("datasets/tags.csv", encoding='"ISO-8859-1"')
+ratings = pd.read_csv("datasets/ratings.csv", encoding='"ISO-8859-1"')
+movies = pd.read_csv("datasets/movies.csv", encoding='"ISO-8859-1"')
+tags = pd.read_csv("datasets/tags.csv", encoding='"ISO-8859-1"')
 
 
 # use partial dataset for debug mode
@@ -77,6 +47,7 @@ adjusted_ratings.loc[adjusted_ratings['rating_adjusted'] == 0, 'rating_adjusted'
 
 # function of building the item-to-item weight matrix
 def build_w_matrix(adjusted_ratings, load_existing_w_matrix):
+    print("building weight matrix")
     # define weight matrix
     w_matrix_columns = ['movie_1', 'movie_2', 'weight']
     w_matrix=pd.DataFrame(columns=w_matrix_columns)
@@ -95,8 +66,8 @@ def build_w_matrix(adjusted_ratings, load_existing_w_matrix):
         # for each movie_1 in all movies
         for movie_1 in distinct_movies:
 
-            if i%10==0:
-                print(i , "out of ", len(distinct_movies))
+            # if i%10==0:
+                # print(i , "out of ", len(distinct_movies))
 
             # extract all users who rated movie_1
             user_data = adjusted_ratings[adjusted_ratings['movieId'] == movie_1]
@@ -107,7 +78,7 @@ def build_w_matrix(adjusted_ratings, load_existing_w_matrix):
             record_movie_1_2 = pd.DataFrame(columns=record_row_columns)
             # for each customer C who rated movie_1
             for c_userid in distinct_users:
-                print('build weight matrix for customer %d, movie_1 %d' % (c_userid, movie_1))
+                # print('build weight matrix for customer %d, movie_1 %d' % (c_userid, movie_1))
                 # the customer's rating for movie_1
                 c_movie_1_rating = user_data[user_data['userId'] == c_userid]['rating_adjusted'].iloc[0]
                 # extract movies rated by the customer excluding movie_1
@@ -125,7 +96,7 @@ def build_w_matrix(adjusted_ratings, load_existing_w_matrix):
             distinct_movie_2 = np.unique(record_movie_1_2['movie_2'])
             # for each movie 2
             for movie_2 in distinct_movie_2:
-                print('calculate weight movie_1 %d, movie_2 %d' % (movie_1, movie_2))
+                # print('calculate weight movie_1 %d, movie_2 %d' % (movie_1, movie_2))
                 paired_movie_1_2 = record_movie_1_2[record_movie_1_2['movie_2'] == movie_2]
                 sim_value_numerator = (paired_movie_1_2['rating_adjusted_1'] * paired_movie_1_2['rating_adjusted_2']).sum()
                 sim_value_denominator = np.sqrt(np.square(paired_movie_1_2['rating_adjusted_1']).sum()) * np.sqrt(np.square(paired_movie_1_2['rating_adjusted_2']).sum())
@@ -140,6 +111,7 @@ def build_w_matrix(adjusted_ratings, load_existing_w_matrix):
             pickle.dump(w_matrix, output, pickle.HIGHEST_PROTOCOL)
         output.close()
 
+    print("finished building")
     return w_matrix
 
 # run the function to build similarity matrix
@@ -206,7 +178,7 @@ eval_result = binary_eval(ratings_test, w_matrix, adjusted_ratings, rating_mean)
 print('Evaluation result - precision: %f, recall: %f' % eval_result)
 
 # make recommendations
-def recommend(userID, w_matrix, adjusted_ratings, rating_mean, amount=10):
+def recommend(userID, w_matrix, adjusted_ratings, rating_mean, amount=5):
     distinct_movies = np.unique(adjusted_ratings['movieId'])
     user_ratings_all_movies = pd.DataFrame(columns=['movieId', 'rating'])
     user_rating = adjusted_ratings[adjusted_ratings['userId']==userID]
@@ -228,5 +200,5 @@ def recommend(userID, w_matrix, adjusted_ratings, rating_mean, amount=10):
     return recommendations
 
 # get a recommendation list for a given user
-recommended_movies = recommend(2, w_matrix, adjusted_ratings, rating_mean)
+recommended_movies = recommend(1, w_matrix, adjusted_ratings, rating_mean)
 print(recommended_movies)
