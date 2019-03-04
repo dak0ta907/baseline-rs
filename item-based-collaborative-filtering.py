@@ -157,26 +157,6 @@ def predict(userId, movieId, w_matrix, adjusted_ratings, rating_mean):
 predicted_rating = predict(2, 29, w_matrix, adjusted_ratings, rating_mean)
 print('The predicted rating: %f' % predicted_rating)
 
-# evaluate the learned recommender system on test data by converting the ratings to negative and positive
-def binary_eval(ratings_test, w_matrix, adjusted_ratings, rating_mean):
-    # predict all the ratings for test data
-    ratings_test = ratings_test.assign(predicted_rating = pd.Series(np.zeros(ratings_test.shape[0])))
-    for index, row_rating in ratings_test.iterrows():
-        predicted_rating = predict(row_rating['userId'], row_rating['movieId'], w_matrix, adjusted_ratings, rating_mean)
-        ratings_test.loc[index, 'predicted_rating'] = predicted_rating
-    tp = ratings_test.query('(rating >= 2.5) & (predicted_rating >= 2.5)').shape[0]
-    fp = ratings_test.query('(rating < 2.5) & (predicted_rating >= 2.5)').shape[0]
-    fn = ratings_test.query('(rating >= 2.5) & (predicted_rating < 2.5)').shape[0]
-
-    # calculate the precision and recall
-    precision = tp/(tp+fp)
-    recall = tp/(tp+fn)
-    return (precision, recall)
-
-# run the evaluation
-eval_result = binary_eval(ratings_test, w_matrix, adjusted_ratings, rating_mean)
-print('Evaluation result - precision: %f, recall: %f' % eval_result)
-
 # make recommendations
 def recommend(userID, w_matrix, adjusted_ratings, rating_mean, amount=5):
     distinct_movies = np.unique(adjusted_ratings['movieId'])
