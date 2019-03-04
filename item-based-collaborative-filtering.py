@@ -95,8 +95,10 @@ def build_w_matrix(adjusted_ratings, load_existing_w_matrix):
                 # print('calculate weight movie_1 %d, movie_2 %d' % (movie_1, movie_2))
                 paired_movie_1_2 = record_movie_1_2[record_movie_1_2['movie_2'] == movie_2]
                 sim_value_numerator = (paired_movie_1_2['rating_adjusted_1'] * paired_movie_1_2['rating_adjusted_2']).sum()
+
                 sim_value_denominator = np.sqrt(np.square(paired_movie_1_2['rating_adjusted_1']).sum()) * np.sqrt(np.square(paired_movie_1_2['rating_adjusted_2']).sum())
                 sim_value_denominator = sim_value_denominator if sim_value_denominator != 0 else 1e-8
+                
                 sim_value = sim_value_numerator / sim_value_denominator
                 w_matrix = w_matrix.append(pd.Series([movie_1, movie_2, sim_value], index=w_matrix_columns), ignore_index=True)
 
@@ -176,19 +178,11 @@ def recommend(userID, w_matrix, adjusted_ratings, rating_mean, amount=5):
     return recommendations
 
 
-# get a recommendation list for a given user
+# get a recommendation list for each user
 for user in np.unique(ratings['userId']):
-    print("User ",user," recommendations")
     try:
         recommended_movies = recommend(user, w_matrix, adjusted_ratings, rating_mean)
-        print(recommended_movies.to_string(index = False)) # to print with no header, switch to below line
+        print("User-id",user," ",recommended_movies["movieId"].to_list())
+        
     except:
-        print("pandas key error")
-
-
-    # print(int(user))
-
-
-
-# print(recommended_movies.to_string(index = False)) # to print with no header, switch to below line
-# print(recommended_movies.to_string(index = False,header = False)) 
+        print("User-id",user," pandas key error")
