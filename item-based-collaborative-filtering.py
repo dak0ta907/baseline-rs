@@ -31,15 +31,16 @@ if debug_mode == True:
     ratings = ratings[(ratings['movieId'] < 100) & (ratings['userId'] < 100)]
     movies = movies[movies['movieId'] < 100]
 
+#this might not need to be here, and changing to just use the raw ratings makes the answer consistent
 
 # split the ratings into training and test
-ratings_training = ratings.sample(frac=0.7)
-ratings_test = ratings.drop(ratings_training.index)
+# ratings = ratings.sample(frac=0.7)
+# ratings_test = ratings.drop(ratings.index)
 
 
 # calculate adjusted ratings based on training data
-rating_mean= ratings_training.groupby(['movieId'], as_index = False, sort = False).mean().rename(columns = {'rating': 'rating_mean'})[['movieId','rating_mean']]
-adjusted_ratings = pd.merge(ratings_training,rating_mean,on = 'movieId', how = 'left', sort = False)
+rating_mean= ratings.groupby(['movieId'], as_index = False, sort = False).mean().rename(columns = {'rating': 'rating_mean'})[['movieId','rating_mean']]
+adjusted_ratings = pd.merge(ratings,rating_mean,on = 'movieId', how = 'left', sort = False)
 adjusted_ratings['rating_adjusted']=adjusted_ratings['rating']-adjusted_ratings['rating_mean']
 # replace 0 adjusted rating values to 1*e-8 in order to avoid 0 denominator
 adjusted_ratings.loc[adjusted_ratings['rating_adjusted'] == 0, 'rating_adjusted'] = 1e-8
