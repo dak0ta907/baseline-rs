@@ -3,11 +3,12 @@ import pandas as pd
 import numpy as np
 import math
 import pickle
+from parsers import *
 
 # debug mode: if it is set True, only use partial dataset for the purpose of debug or demonstration
-debug_mode = True
+debug_mode = False
 # load_existing_w_matrix: it it is set True, the previous built similarity matrix will be loaded instead of building one
-load_existing_w_matrix = True
+load_existing_w_matrix = False
 
 
 # Set the file path where the similarity matrix will be persisted
@@ -41,9 +42,23 @@ adjusted_ratings['rating_adjusted']=adjusted_ratings['rating']-adjusted_ratings[
 # adjusted_ratings.loc[adjusted_ratings['rating_adjusted'] == 0, 'rating_adjusted'] = 1e-8
 
 
+#adding my code to try and get ahead of this, this properly weights the matrix
+Movielist = parse_mid()
+movieDictionary = genMovieDictionary(Movielist)#create a dictionary of all of our movies, key = MID, val = Movie Class
+userRatingsDict = genUserRatingList()#create a dictionary of all of our movie ratings
+movieDict = assembleMovieMatricies(movieDictionary, userRatingsDict)
+
+for key in movieDict.keys():
+#    print(movieDict[key][0])
+   centerMatrix(movieDict[key][1])
+#    print(movieDict[key][1]
+
+
+
 # function of building the item-to-item weight matrix
 def build_w_matrix(adjusted_ratings, load_existing_w_matrix):
-    print("building weight matrix")
+    # print("building weight matrix")
+    i = 0
     # define weight matrix
     w_matrix_columns = ['movie_1', 'movie_2', 'weight']
     w_matrix=pd.DataFrame(columns=w_matrix_columns)
@@ -56,60 +71,22 @@ def build_w_matrix(adjusted_ratings, load_existing_w_matrix):
 
     # calculate the similarity values
     else:
-        distinct_movies = np.unique(adjusted_ratings['movieId'])
-
-        i = 0
-        # for each movie_1 in all movies
-        for movie_1 in distinct_movies:
-
-            # if i%10==0:
-                # print(i , "out of ", len(distinct_movies))
-
-            # extract all users who rated movie_1
-            user_data = adjusted_ratings[adjusted_ratings['movieId'] == movie_1]
-            distinct_users = np.unique(user_data['userId'])
-
-            # record the ratings for users who rated both movie_1 and movie_2
-            record_row_columns = ['userId', 'movie_1', 'movie_2', 'rating_adjusted_1', 'rating_adjusted_2']
-            record_movie_1_2 = pd.DataFrame(columns=record_row_columns)
-            # for each customer C who rated movie_1
-            for c_userid in distinct_users:
-                # print('build weight matrix for customer %d, movie_1 %d' % (c_userid, movie_1))
-                # the customer's rating for movie_1
-                c_movie_1_rating = user_data[user_data['userId'] == c_userid]['rating_adjusted'].iloc[0]
-                # extract movies rated by the customer excluding movie_1
-                c_user_data = adjusted_ratings[(adjusted_ratings['userId'] == c_userid) & (adjusted_ratings['movieId'] != movie_1)]
-                c_distinct_movies = np.unique(c_user_data['movieId'])
-
-                # for each movie rated by customer C as movie=2
-                for movie_2 in c_distinct_movies:
-                    # the customer's rating for movie_2
-                    c_movie_2_rating = c_user_data[c_user_data['movieId'] == movie_2]['rating_adjusted'].iloc[0]
-                    record_row = pd.Series([c_userid, movie_1, movie_2, c_movie_1_rating, c_movie_2_rating], index=record_row_columns)
-                    record_movie_1_2 = record_movie_1_2.append(record_row, ignore_index=True)
-
-            # calculate the similarity values between movie_1 and the above recorded movies
-            distinct_movie_2 = np.unique(record_movie_1_2['movie_2'])
-            # for each movie 2
-            for movie_2 in distinct_movie_2:
-                # print('calculate weight movie_1 %d, movie_2 %d' % (movie_1, movie_2))
-                paired_movie_1_2 = record_movie_1_2[record_movie_1_2['movie_2'] == movie_2]
-                sim_value_numerator = (paired_movie_1_2['rating_adjusted_1'] * paired_movie_1_2['rating_adjusted_2']).sum()
-
-                sim_value_denominator = np.sqrt(np.square(paired_movie_1_2['rating_adjusted_1']).sum()) * np.sqrt(np.square(paired_movie_1_2['rating_adjusted_2']).sum())
-                sim_value_denominator = sim_value_denominator if sim_value_denominator != 0 else 1e-8
-                
-                sim_value = sim_value_numerator / sim_value_denominator
-                w_matrix = w_matrix.append(pd.Series([movie_1, movie_2, sim_value], index=w_matrix_columns), ignore_index=True)
+        comblist = itertools.combinations(movieDict.keys(), 2)
+        for comb in comblist:
+            sim_value = cos_sim(movieDict[comb[0]][1], movieDict[comb[1]][1])
+            w_matrix = w_matrix.append(pd.Series([str(comb[0]), str(comb[1]), sim_value], index=w_matrix_columns), ignore_index=True)
 
             i = i + 1
+            if debug_mode == True:
+                if i == 100:
+                    break
 
         # output weight matrix to pickle file
         with open(DEFAULT_PARTICLE_PATH, 'wb') as output:
             pickle.dump(w_matrix, output, pickle.HIGHEST_PROTOCOL)
         output.close()
 
-    print("finished building")
+    # print(w_matrix)
     return w_matrix
 
 # run the function to build similarity matrix
@@ -151,10 +128,6 @@ def predict(userId, movieId, w_matrix, adjusted_ratings, rating_mean):
 
     return predicted_rating
 
-# predict a rating for a given user and given movie
-# predicted_rating = predict(2, 29, w_matrix, adjusted_ratings, rating_mean)
-# print('The predicted rating: %f' % predicted_rating)
-
 # make recommendations
 def recommend(userID, w_matrix, adjusted_ratings, rating_mean, amount=5):
     distinct_movies = np.unique(adjusted_ratings['movieId'])
@@ -179,10 +152,14 @@ def recommend(userID, w_matrix, adjusted_ratings, rating_mean, amount=5):
 
 
 # get a recommendation list for each user
+i = 0
 for user in np.unique(ratings['userId']):
+    i+= 1
+    if(i == 10 and debug_mode == True):
+        break
     try:
         recommended_movies = recommend(user, w_matrix, adjusted_ratings, rating_mean)
         print("User-id",user," ",recommended_movies["movieId"].to_list())
         
     except:
-        print("User-id",user," pandas key error")
+        print("User-id",user," unable to recommend")
