@@ -4,11 +4,6 @@ import numpy as np
 import math
 import pickle
 
-
-# configs
-# environment: gcolab - Google Colab, local - local machine
-environment = 'local'
-#environment= 'gcolab'
 # debug mode: if it is set True, only use partial dataset for the purpose of debug or demonstration
 debug_mode = True
 # load_existing_w_matrix: it it is set True, the previous built similarity matrix will be loaded instead of building one
@@ -43,7 +38,7 @@ rating_mean= ratings.groupby(['movieId'], as_index = False, sort = False).mean()
 adjusted_ratings = pd.merge(ratings,rating_mean,on = 'movieId', how = 'left', sort = False)
 adjusted_ratings['rating_adjusted']=adjusted_ratings['rating']-adjusted_ratings['rating_mean']
 # replace 0 adjusted rating values to 1*e-8 in order to avoid 0 denominator
-adjusted_ratings.loc[adjusted_ratings['rating_adjusted'] == 0, 'rating_adjusted'] = 1e-8
+# adjusted_ratings.loc[adjusted_ratings['rating_adjusted'] == 0, 'rating_adjusted'] = 1e-8
 
 
 # function of building the item-to-item weight matrix
@@ -180,8 +175,20 @@ def recommend(userID, w_matrix, adjusted_ratings, rating_mean, amount=5):
     recommendations = user_ratings_all_movies.sort_values(by=['rating'], ascending=False).head(amount)
     return recommendations
 
-# get a recommendation list for a given user
-recommended_movies = recommend(1, w_matrix, adjusted_ratings, rating_mean)
 
-print(recommended_movies.to_string(index = False)) # to print with no header, switch to below line
+# get a recommendation list for a given user
+for user in np.unique(ratings['userId']):
+    print("User ",user," recommendations")
+    try:
+        recommended_movies = recommend(user, w_matrix, adjusted_ratings, rating_mean)
+        print(recommended_movies.to_string(index = False)) # to print with no header, switch to below line
+    except:
+        print("pandas key error")
+
+
+    # print(int(user))
+
+
+
+# print(recommended_movies.to_string(index = False)) # to print with no header, switch to below line
 # print(recommended_movies.to_string(index = False,header = False)) 
