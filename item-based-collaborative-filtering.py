@@ -10,9 +10,9 @@ import pickle
 environment = 'local'
 #environment= 'gcolab'
 # debug mode: if it is set True, only use partial dataset for the purpose of debug or demonstration
-debug_mode = False
+debug_mode = True
 # load_existing_w_matrix: it it is set True, the previous built similarity matrix will be loaded instead of building one
-load_existing_w_matrix = False
+load_existing_w_matrix = True
 
 
 # Set the file path where the similarity matrix will be persisted
@@ -154,8 +154,8 @@ def predict(userId, movieId, w_matrix, adjusted_ratings, rating_mean):
     return predicted_rating
 
 # predict a rating for a given user and given movie
-predicted_rating = predict(2, 29, w_matrix, adjusted_ratings, rating_mean)
-print('The predicted rating: %f' % predicted_rating)
+# predicted_rating = predict(2, 29, w_matrix, adjusted_ratings, rating_mean)
+# print('The predicted rating: %f' % predicted_rating)
 
 # make recommendations
 def recommend(userID, w_matrix, adjusted_ratings, rating_mean, amount=5):
@@ -181,4 +181,6 @@ def recommend(userID, w_matrix, adjusted_ratings, rating_mean, amount=5):
 
 # get a recommendation list for a given user
 recommended_movies = recommend(1, w_matrix, adjusted_ratings, rating_mean)
-print(recommended_movies)
+
+print(recommended_movies.to_string(index = False)) # to print with no header, switch to below line
+# print(recommended_movies.to_string(index = False,header = False)) 
